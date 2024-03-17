@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -12,9 +14,21 @@ import (
 
 // Book struct to represent a book
 type Book struct {
-	ID     int    `json:"id"`
-	Title  string `json:"title"`
-	Author string `json:"author"`
+	ID            int    `json:"id"`
+	Title         string `json:"title"`
+	Author        string `json:"author"`
+	PublishedYear int    `json:"published_year"`
+}
+
+type Config struct {
+	Database struct {
+		Host     string `json:"host"`
+		Port     int    `json:"port"`
+		User     string `json:"user"`
+		Password string `json:"password"`
+		DBName   string `json:"dbname"`
+		SSLMode  string `json:"sslmode"`
+	} `json:"database"`
 }
 
 var db *sql.DB
@@ -22,8 +36,30 @@ var db *sql.DB
 func main() {
 	var err error
 
+	// Read configuration from file
+	configFile, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal("Error opening config file:", err)
+	}
+	defer configFile.Close()
+
+	var config Config
+	jsonParser := json.NewDecoder(configFile)
+	err = jsonParser.Decode(&config)
+	if err != nil {
+		log.Fatal("Error decoding config JSON:", err)
+	}
+
+	// Construct connection string
+	connStr := "host=" + config.Database.Host +
+		" port=" + strconv.Itoa(config.Database.Port) +
+		" user=" + config.Database.User +
+		" password=" + config.Database.Password +
+		" dbname=" + config.Database.DBName +
+		" sslmode=" + config.Database.SSLMode
+
 	// Connect to PostgreSQL
-	db, err = sql.Open("postgres", "postgres://postgres:q123@5432/bookstore?sslmode=disable")
+	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +79,7 @@ func main() {
 
 // Get all books
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT * FROM books")
+	rows, err := db.Query("SELECT id, title, author, published_year FROM books")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +88,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	var books []Book
 	for rows.Next() {
 		var book Book
-		err := rows.Scan(&book.ID, &book.Title, &book.Author)
+		err := rows.Scan(&book.ID, &book.Title, &book.Author, &book.PublishedYear)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -66,10 +102,10 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 // Get single book by ID
 func getBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	row := db.QueryRow("SELECT * FROM books WHERE id = $1", params["id"])
+	row := db.QueryRow("SELECT id, title, author, published_year  FROM books WHERE id = $1", params["id"])
 
 	var book Book
-	err := row.Scan(&book.ID, &book.Title, &book.Author)
+	err := row.Scan(&book.ID, &book.Title, &book.Author, &book.PublishedYear)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -90,7 +126,7 @@ func addBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO books (title, author) VALUES ($1, $2)", book.Title, book.Author)
+	_, err = db.Exec("INSERT INTO books (title, author, published_year) VALUES ($1, $2, $3)", book.Title, book.Author, book.PublishedYear)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -111,7 +147,7 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("UPDATE books SET title = $1, author = $2 WHERE id = $3", book.Title, book.Author, params["id"])
+	_, err = db.Exec("UPDATE books SET title = $1, author = $2, published_year = $3 WHERE id = $4", book.Title, book.Author, book.PublishedYear, params["id"])
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

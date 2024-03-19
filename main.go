@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bookstore/user"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -73,6 +74,8 @@ func main() {
 	router.HandleFunc("/books", addBook).Methods("POST")
 	router.HandleFunc("/books/{id}", updateBook).Methods("PUT")
 	router.HandleFunc("/books/{id}", deleteBook).Methods("DELETE")
+	router.HandleFunc("/register", user.RegisterUser).Methods("POST")
+	router.HandleFunc("/login", user.LoginUser).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8000", router))
 }

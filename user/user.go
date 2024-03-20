@@ -1,10 +1,11 @@
 package user
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"bookstore/db"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -24,8 +25,6 @@ type UserCredentials struct {
 	Password string `json:"password"`
 }
 
-var db *sql.DB
-
 // Map to store user sessions
 var sessions = make(map[string]int)
 
@@ -41,7 +40,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	// Check if username already exists
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1", user.Username).Scan(&count)
+	err = db.DB.QueryRow("SELECT COUNT(*) FROM users WHERE username = $1", user.Username).Scan(&count)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -61,7 +60,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert new user into database
-	_, err = db.Exec("INSERT INTO users (username, password) VALUES ($1, $2)", user.Username, string(hashedPassword))
+	_, err = db.DB.Exec("INSERT INTO users (username, password) VALUES ($1, $2)", user.Username, string(hashedPassword))
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -83,7 +82,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve user from database
 	var retrievedUser User
-	err = db.QueryRow("SELECT id, password FROM users WHERE username = $1", user.Username).Scan(&retrievedUser.ID, &retrievedUser.Password)
+	err = db.DB.QueryRow("SELECT id, password FROM users WHERE username = $1", user.Username).Scan(&retrievedUser.ID, &retrievedUser.Password)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)

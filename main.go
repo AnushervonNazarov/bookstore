@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bookstore/db"
 	"bookstore/user"
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -32,8 +32,6 @@ type Config struct {
 	} `json:"database"`
 }
 
-var db *sql.DB
-
 func main() {
 	var err error
 
@@ -60,11 +58,8 @@ func main() {
 		" sslmode=" + config.Database.SSLMode
 
 	// Connect to PostgreSQL
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+	db.InitDB(connStr)
+	defer db.DB.Close()
 
 	router := mux.NewRouter()
 
@@ -82,7 +77,7 @@ func main() {
 
 // Get all books
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query("SELECT id, title, author, published_year FROM books")
+	rows, err := db.DB.Query("SELECT id, title, author, published_year FROM books")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +100,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 // Get single book by ID
 func getBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	row := db.QueryRow("SELECT id, title, author, published_year  FROM books WHERE id = $1", params["id"])
+	row := db.DB.QueryRow("SELECT id, title, author, published_year  FROM books WHERE id = $1", params["id"])
 
 	var book Book
 	err := row.Scan(&book.ID, &book.Title, &book.Author, &book.PublishedYear)
@@ -129,7 +124,7 @@ func addBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO books (title, author, published_year) VALUES ($1, $2, $3)", book.Title, book.Author, book.PublishedYear)
+	_, err = db.DB.Exec("INSERT INTO books (title, author, published_year) VALUES ($1, $2, $3)", book.Title, book.Author, book.PublishedYear)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -150,7 +145,7 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("UPDATE books SET title = $1, author = $2, published_year = $3 WHERE id = $4", book.Title, book.Author, book.PublishedYear, params["id"])
+	_, err = db.DB.Exec("UPDATE books SET title = $1, author = $2, published_year = $3 WHERE id = $4", book.Title, book.Author, book.PublishedYear, params["id"])
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -163,7 +158,7 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 // Delete a book
 func deleteBook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
-	_, err := db.Exec("DELETE FROM books WHERE id = $1", params["id"])
+	_, err := db.DB.Exec("DELETE FROM books WHERE id = $1", params["id"])
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

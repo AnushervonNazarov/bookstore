@@ -4,10 +4,12 @@ import (
 	"bookstore/db"
 	"bookstore/user"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -166,4 +168,23 @@ func deleteBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func ValidateRegister(u *user.User) error {
+	u.Username = strings.TrimSpace(u.Username)
+	u.Password = strings.TrimSpace(u.Password)
+
+	if u.Username == "" {
+		return errors.New("no login provided")
+	}
+
+	if u.Password == "" {
+		return errors.New("no password provided")
+	}
+
+	if len(strings.Split(u.Username, " ")) > 1 {
+		return errors.New("login should be one word")
+	}
+
+	return nil
 }

@@ -2,8 +2,10 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"bookstore/db"
 
@@ -32,6 +34,13 @@ var sessions = make(map[string]int)
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var user UserCredentials
 	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		log.Println(err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	err = ValidateRegister(&User{})
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -103,4 +112,23 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	// Set token in response header
 	w.Header().Set("Authorization", "Bearer "+sessionToken)
+}
+
+func ValidateRegister(u *User) error {
+	u.Username = strings.TrimSpace(u.Username)
+	u.Password = strings.TrimSpace(u.Password)
+
+	if u.Username == "" {
+		return errors.New("no login provided")
+	}
+
+	if u.Password == "" {
+		return errors.New("no password provided")
+	}
+
+	if len(strings.Split(u.Username, " ")) > 1 {
+		return errors.New("login should be one word")
+	}
+
+	return nil
 }

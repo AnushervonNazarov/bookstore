@@ -32,15 +32,20 @@ var sessions = make(map[string]int)
 
 // Register a new user
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var user UserCredentials
-	err := json.NewDecoder(r.Body).Decode(&user)
+	var userCred UserCredentials
+	err := json.NewDecoder(r.Body).Decode(&userCred)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	err = ValidateRegister(&User{})
+	user := User{
+		Username: userCred.Username,
+		Password: userCred.Password,
+	}
+
+	err = ValidateRegister(&user)
 	if err != nil {
 		log.Println(err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)

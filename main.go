@@ -4,7 +4,6 @@ import (
 	"bookstore/db"
 	"bookstore/user"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -63,18 +62,27 @@ func main() {
 	db.InitDB(connStr)
 	defer db.DB.Close()
 
-	router := mux.NewRouter()
+	// Router for routes that require authentication
+	authenticatedRouter := mux.NewRouter()
+	authenticatedRouter.Use(AuthMiddleware)
+	authenticatedRouter.HandleFunc("/books", getBooks).Methods("GET")
+	authenticatedRouter.HandleFunc("/books/{id}", getBook).Methods("GET")
+	authenticatedRouter.HandleFunc("/books", addBook).Methods("POST")
+	authenticatedRouter.HandleFunc("/books/{id}", updateBook).Methods("PUT")
+	authenticatedRouter.HandleFunc("/books/{id}", deleteBook).Methods("DELETE")
 
-	// Define routes
-	router.HandleFunc("/books", getBooks).Methods("GET")
-	router.HandleFunc("/books/{id}", getBook).Methods("GET")
-	router.HandleFunc("/books", addBook).Methods("POST")
-	router.HandleFunc("/books/{id}", updateBook).Methods("PUT")
-	router.HandleFunc("/books/{id}", deleteBook).Methods("DELETE")
-	router.HandleFunc("/register", user.RegisterUser).Methods("POST")
-	router.HandleFunc("/login", user.LoginUser).Methods("POST")
+	// Router for routes that don't require authentication
+	nonAuthenticatedRouter := mux.NewRouter()
+	nonAuthenticatedRouter.HandleFunc("/register", user.RegisterUser).Methods("POST")
+	nonAuthenticatedRouter.HandleFunc("/login", user.LoginUser).Methods("POST")
 
-	log.Fatal(http.ListenAndServe(":8000", router))
+	// Combine both routers
+	mainRouter := mux.NewRouter()
+	mainRouter.PathPrefix("/books").Handler(authenticatedRouter)
+	mainRouter.PathPrefix("/").Handler(nonAuthenticatedRouter)
+
+	log.Fatal(http.ListenAndServe(":8000", mainRouter))
+
 }
 
 // Get all books
@@ -170,21 +178,26 @@ func deleteBook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func ValidateRegister(u *user.User) error {
-	u.Username = strings.TrimSpace(u.Username)
-	u.Password = strings.TrimSpace(u.Password)
+// Middleware function to handle authentication
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-	if u.Username == "" {
-		return errors.New("no login provided")
-	}
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Authorization token required", http.StatusUnauthorized)
+			return
+		}
 
-	if u.Password == "" {
-		return errors.New("no password provided")
-	}
+		token := strings.Split(authHeader, "Bearer ")
+		if len(token) != 2 {
+			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+			return
+		}
 
-	if len(strings.Split(u.Username, " ")) > 1 {
-		return errors.New("login should be one word")
-	}
+		// Here you would typically validate the token.
+		// For this example, we assume a simple token validation.
 
-	return nil
+		// If token is valid, proceed with the next handler
+		next.ServeHTTP(w, r)
+	})
 }

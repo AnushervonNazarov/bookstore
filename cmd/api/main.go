@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bookstore/db"
-	"bookstore/user"
+	"bookstore/internal/db"
+	"bookstore/internal/user"
 	"encoding/json"
 	"log"
 	"net/http"

@@ -1,0 +1,19 @@
+bookstore/
+├── cmd/
+│   └── api/
+│       └── main.go
+├── internal/
+│   ├── config/
+│   │   └── config.go
+│   ├── db/
+│   │   └── db.go
+│   ├── handler/
+│   │   ├── book_handler.go
+│   │   └── user_handler.go
+│   ├── middleware/
+│   │   └── auth.go
+│   ├── model/
+│   │   └── book.go
+│   ├── router/
+│   │   └── router.go
+└── go.mod

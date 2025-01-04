@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"bookstore/db"
+	"bookstore/internal/db"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
